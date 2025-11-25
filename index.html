@@ -41,6 +41,7 @@
             background: #fff;
             padding: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
         }
 
         button {
@@ -51,6 +52,7 @@
             background: #2575fc;
             color: white;
             transition: background 0.3s;
+            margin: 5px;
         }
 
         button:hover {
@@ -59,12 +61,14 @@
 
         /* Animations */
         @keyframes priceDrop {
-            0% { transform: translateY(0); }
+            0% { transform: translateY(0); opacity: 1; }
             100% { transform: translateY(20px); opacity: 0; }
         }
 
         .price-drop {
             animation: priceDrop 1s ease-in-out;
+            font-size: 1.2em;
+            color: red;
         }
 
         @keyframes confetti {
@@ -81,15 +85,25 @@
         }
 
         /* Swipe styles */
-        .swipe-card {
+        .swipe-container {
             position: relative;
             width: 100%;
-            height: 200px;
+            overflow: hidden;
+        }
+
+        .swipe-card {
+            position: absolute;
+            width: 90%;
+            left: 5%;
+            height: 250px;
             background: white;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             touch-action: pan-y;
             user-select: none;
+            transition: transform 0.3s, opacity 0.3s;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         /* Hide sections */
@@ -97,11 +111,40 @@
             display: none;
         }
 
+        /* Comparison table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* Badges */
+        .badge {
+            background: #ffd700;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 20px;
+            margin: 5px;
+            display: inline-block;
+        }
+
         /* Responsive for larger screens */
         @media (min-width: 768px) {
             main {
                 max-width: 800px;
                 margin: 0 auto;
+            }
+            nav {
+                flex-wrap: nowrap;
             }
         }
 
@@ -111,11 +154,12 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header class="gradient-bg">
         <h1>Amada Resources</h1>
-        <p>Your Competitive Bidding Marketplace</p>
+        <p>Your Transparent Competitive Bidding Marketplace</p>
     </header>
 
     <nav>
@@ -123,6 +167,7 @@
         <button onclick="showSection('login')">Login</button>
         <button onclick="showSection('register')">Register</button>
         <button onclick="logout()" id="logoutBtn" class="hidden">Logout</button>
+        <button onclick="showAuditTrail()" id="auditBtn" class="hidden">Audit Trail</button>
     </nav>
 
     <main>
@@ -130,7 +175,8 @@
         <section id="home">
             <div class="neumorphic">
                 <h2>Welcome to Amada Resources</h2>
-                <p>A platform where businesses post procurement needs and vendors bid transparently.</p>
+                <p>A fun, transparent platform for procurement and bidding across industries.</p>
+                <p>Businesses post needs, vendors bid competitively, with gamified elements and full transparency.</p>
             </div>
         </section>
 
@@ -167,6 +213,8 @@
                         <option value="business">Business/Procurement</option>
                         <option value="vendor">Vendor/Supplier</option>
                     </select>
+                    <label for="companyName">Company Name:</label>
+                    <input type="text" id="companyName" required>
                     <button type="button" onclick="register()">Register</button>
                 </form>
             </div>
@@ -176,19 +224,15 @@
         <section id="businessDashboard" class="hidden">
             <div class="neumorphic">
                 <h2>Business Dashboard</h2>
+                <div id="procurementStreaks">Streak: 0 days</div>
                 <button onclick="showSection('postNeed')">Post New Need</button>
-                <button onclick="showSection('viewBids')">View Bids</button>
-                <button onclick="showSection('analytics')">Analytics</button>
-                <div id="businessAnalytics" class="hidden">
-                    <h3>Savings Analytics</h3>
-                    <p>You saved $5000 this month!</p>
-                </div>
+                <button onclick="showSection('viewBids')">View Bids & Compare</button>
+                <button onclick="showSection('analytics')">Analytics & Savings</button>
+                <button onclick="showSection('trackDelivery')">Track Deliveries</button>
+                <button onclick="showSection('approvalWorkflow')">Approval Workflow</button>
             </div>
             <!-- Swipe for vendors -->
-            <div class="swipe-card" id="vendorCard">
-                <p>Vendor Bid: $100 for 200kg Chicken</p>
-                <p>Swipe right to shortlist, left to decline, up for details.</p>
-            </div>
+            <div class="swipe-container" id="swipeContainer"></div>
         </section>
 
         <!-- Post Need Section -->
@@ -198,10 +242,10 @@
                 <form id="postForm">
                     <label for="item">Item/Service:</label>
                     <input type="text" id="item" required>
-                    <label for="quantity">Quantity:</label>
-                    <input type="text" id="quantity" required>
-                    <label for="timeline">Bidding Timeline:</label>
-                    <input type="date" id="timeline" required>
+                    <label for="quantity">Quantity/Details:</label>
+                    <textarea id="quantity" required></textarea>
+                    <label for="timeline">Bidding Timeline (End Date):</label>
+                    <input type="datetime-local" id="timeline" required>
                     <button type="button" onclick="postNeed()">Submit</button>
                 </form>
             </div>
@@ -210,8 +254,21 @@
         <!-- View Bids Section -->
         <section id="viewBids" class="hidden">
             <div class="neumorphic">
-                <h2>View Bids</h2>
-                <ul id="bidsList"></ul>
+                <h2>View Bids & Comparisons</h2>
+                <select id="needSelect" onchange="loadBidsForNeed()"></select>
+                <table id="bidsTable">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Amount</th>
+                            <th>Quality/Description</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bidsBody"></tbody>
+                </table>
+                <canvas id="comparisonChart" width="400" height="200"></canvas>
                 <div id="chat" class="hidden">
                     <h3>Chat with Vendor</h3>
                     <div id="chatMessages"></div>
@@ -221,17 +278,52 @@
             </div>
         </section>
 
+        <!-- Analytics Section -->
+        <section id="analytics" class="hidden">
+            <div class="neumorphic">
+                <h2>Analytics & Savings</h2>
+                <p id="savings">Total Savings: $0</p>
+                <p id="streaks">Procurement Streaks: 0</p>
+                <canvas id="savingsChart" width="400" height="200"></canvas>
+            </div>
+        </section>
+
+        <!-- Track Delivery Section -->
+        <section id="trackDelivery" class="hidden">
+            <div class="neumorphic">
+                <h2>Track Deliveries, Invoices & Receipts</h2>
+                <ul id="deliveryList"></ul>
+                <form id="invoiceForm">
+                    <label for="invoiceNeed">Need ID:</label>
+                    <input type="number" id="invoiceNeed" required>
+                    <label for="invoiceFile">Upload Invoice:</label>
+                    <input type="file" id="invoiceFile">
+                    <button type="button" onclick="uploadInvoice()">Upload</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Approval Workflow Section -->
+        <section id="approvalWorkflow" class="hidden">
+            <div class="neumorphic">
+                <h2>Multi-Level Approval Workflow</h2>
+                <p>Department: <select id="department"><option>Procurement</option><option>Finance</option></select></p>
+                <p>Role: <select id="role"><option>Manager</option><option>Approver</option></select></p>
+                <ul id="pendingApprovals"></ul>
+                <button onclick="approveBid()">Approve Selected Bid</button>
+            </div>
+        </section>
+
         <!-- Vendor Dashboard -->
         <section id="vendorDashboard" class="hidden">
             <div class="neumorphic">
                 <h2>Vendor Dashboard</h2>
-                <button onclick="showSection('viewOpportunities')">View Opportunities</button>
-                <button onclick="showSection('profile')">Edit Profile</button>
+                <div id="vendorBadges"></div>
+                <div id="performanceScore">Performance Score: 0</div>
+                <button onclick="showSection('viewOpportunities')">View Open Opportunities</button>
+                <button onclick="showSection('profile')">Edit Profile & Catalog</button>
                 <button onclick="showSection('bidClash')">Bid Clash Arena</button>
-                <div id="badges">
-                    <h3>Your Badges</h3>
-                    <span class="badge">Fast Responder</span>
-                </div>
+                <button onclick="showSection('vendorAnalytics')">Vendor Analytics</button>
             </div>
         </section>
 
@@ -248,9 +340,11 @@
             <div class="neumorphic">
                 <h2>Submit Bid</h2>
                 <form id="bidForm">
-                    <label for="bidAmount">Bid Amount:</label>
+                    <label for="bidAmount">Bid Amount ($):</label>
                     <input type="number" id="bidAmount" required>
-                    <label for="quotation">Quotation Upload:</label>
+                    <label for="bidDescription">Description/Quality Info:</label>
+                    <textarea id="bidDescription" required></textarea>
+                    <label for="quotation">Upload Quotation/Brochure:</label>
                     <input type="file" id="quotation">
                     <button type="button" onclick="submitBid()">Submit Bid</button>
                 </form>
@@ -260,13 +354,17 @@
         <!-- Profile Section -->
         <section id="profile" class="hidden">
             <div class="neumorphic">
-                <h2>Edit Profile</h2>
+                <h2>Edit Vendor Profile</h2>
                 <form id="profileForm">
                     <label for="companyInfo">Company Info:</label>
-                    <textarea id="companyInfo"></textarea>
+                    <textarea id="companyInfo" required></textarea>
                     <label for="certifications">Certifications:</label>
-                    <input type="text" id="certifications">
-                    <button type="button" onclick="updateProfile()">Update</button>
+                    <input type="text" id="certifications" required>
+                    <label for="catalog">Upload Catalog:</label>
+                    <input type="file" id="catalog">
+                    <label for="pastWork">Past Work Examples:</label>
+                    <textarea id="pastWork"></textarea>
+                    <button type="button" onclick="updateProfile()">Update Profile</button>
                 </form>
             </div>
         </section>
@@ -275,48 +373,82 @@
         <section id="bidClash" class="hidden">
             <div class="neumorphic">
                 <h2>Bid Clash Arena</h2>
-                <p>Your Rank: 2nd</p>
-                <div id="priceDropAnimation">Price Dropping!</div>
+                <select id="clashNeedSelect" onchange="loadClashRanks()"></select>
+                <ul id="rankList"></ul>
+                <div id="priceDropAnimation" class="hidden">Price Dropping!</div>
             </div>
         </section>
 
-        <!-- Analytics Section -->
-        <section id="analytics" class="hidden">
+        <!-- Vendor Analytics -->
+        <section id="vendorAnalytics" class="hidden">
             <div class="neumorphic">
-                <h2>Analytics</h2>
-                <p>Savings: $10,000</p>
-                <p>Streaks: 5 days</p>
+                <h2>Vendor Analytics</h2>
+                <p id="winRate">Win Rate: 0%</p>
+                <p id="ratings">Average Rating: 0</p>
+            </div>
+        </section>
+
+        <!-- Audit Trail Section -->
+        <section id="auditTrail" class="hidden">
+            <div class="neumorphic">
+                <h2>Audit Trail</h2>
+                <ul id="auditList"></ul>
             </div>
         </section>
     </main>
 
-    <footer>
+    <footer class="gradient-bg">
         <p>&copy; 2025 Amada Resources. All rights reserved.</p>
+        <p>Business Model: 3-5% Transaction Fee | Vendor Subscriptions | Featured Ads | Bid Boosts</p>
     </footer>
 
     <script>
-        // Mock data
+        // Data structures
         let currentUser = null;
         let users = JSON.parse(localStorage.getItem('users')) || [];
         let needs = JSON.parse(localStorage.getItem('needs')) || [];
         let bids = JSON.parse(localStorage.getItem('bids')) || [];
-        let messages = [];
+        let profiles = JSON.parse(localStorage.getItem('profiles')) || [];
+        let audits = JSON.parse(localStorage.getItem('audits')) || [];
+        let messages = {}; // {needId_vendor: [msgs]}
+        let deliveries = JSON.parse(localStorage.getItem('deliveries')) || [];
+        let approvals = JSON.parse(localStorage.getItem('approvals')) || [];
+        let streaks = JSON.parse(localStorage.getItem('streaks')) || { count: 0, lastPost: null };
+        let vendorStats = JSON.parse(localStorage.getItem('vendorStats')) || { wins: 0, totalBids: 0, rating: 0 };
 
         function showSection(sectionId) {
             document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
-            if (sectionId === 'viewBids') loadBids();
+            if (sectionId === 'businessDashboard') loadSwipeCards();
+            if (sectionId === 'viewBids') loadNeedSelect();
+            if (sectionId === 'analytics') loadAnalytics();
+            if (sectionId === 'trackDelivery') loadDeliveries();
+            if (sectionId === 'approvalWorkflow') loadPendingApprovals();
             if (sectionId === 'viewOpportunities') loadOpportunities();
+            if (sectionId === 'profile') loadProfile();
+            if (sectionId === 'bidClash') loadClashNeedSelect();
+            if (sectionId === 'vendorAnalytics') loadVendorAnalytics();
+            if (sectionId === 'auditTrail') loadAuditTrail();
         }
 
         function register() {
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
             const type = document.getElementById('regUserType').value;
-            users.push({ email, password, type });
+            const company = document.getElementById('companyName').value;
+            if (users.find(u => u.email === email)) {
+                alert('User exists');
+                return;
+            }
+            users.push({ email, password, type, company });
             localStorage.setItem('users', JSON.stringify(users));
+            if (type === 'vendor') {
+                profiles.push({ email, companyInfo: '', certifications: '', catalog: '', pastWork: '', badges: [] });
+                localStorage.setItem('profiles', JSON.stringify(profiles));
+            }
             alert('Registered successfully!');
             showSection('login');
+            logAudit(`User registered: \( {email} as \){type}`);
         }
 
         function login() {
@@ -327,11 +459,15 @@
             if (user) {
                 currentUser = user;
                 document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('auditBtn').classList.remove('hidden');
                 if (type === 'business') {
                     showSection('businessDashboard');
+                    updateStreaks();
                 } else {
                     showSection('vendorDashboard');
+                    loadBadges();
                 }
+                logAudit(`User logged in: ${email}`);
             } else {
                 alert('Invalid credentials');
             }
@@ -340,31 +476,52 @@
         function logout() {
             currentUser = null;
             document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('auditBtn').classList.add('hidden');
             showSection('home');
+            logAudit('User logged out');
         }
 
         function postNeed() {
             const item = document.getElementById('item').value;
             const quantity = document.getElementById('quantity').value;
-            const timeline = document.getElementById('timeline').value;
-            needs.push({ id: needs.length + 1, item, quantity, timeline, bids: [] });
+            const timeline = new Date(document.getElementById('timeline').value).getTime();
+            const id = needs.length + 1;
+            needs.push({ id, item, quantity, timeline, owner: currentUser.email, bids: [], status: 'open' });
             localStorage.setItem('needs', JSON.stringify(needs));
-            alert('Need posted!');
+            alert('Need posted! Push notification sent to vendors (mock).');
+            logAudit(`Need posted: \( {id} by \){currentUser.email}`);
+            updateStreaks(true);
             showSection('businessDashboard');
+        }
+
+        function updateStreaks(posted = false) {
+            const today = new Date().setHours(0,0,0,0);
+            if (posted) {
+                if (streaks.lastPost === today) {
+                    // Already posted today
+                } else if (streaks.lastPost === today - 86400000) {
+                    streaks.count++;
+                } else {
+                    streaks.count = 1;
+                }
+                streaks.lastPost = today;
+                localStorage.setItem('streaks', JSON.stringify(streaks));
+            }
+            document.getElementById('procurementStreaks').textContent = `Streak: ${streaks.count} days`;
+            if (streaks.count > 5) awardBadge('Streak Master');
         }
 
         function loadOpportunities() {
             const list = document.getElementById('opportunitiesList');
             list.innerHTML = '';
-            needs.forEach(need => {
+            needs.filter(n => n.status === 'open' && n.timeline > Date.now()).forEach(need => {
                 const li = document.createElement('li');
-                li.textContent = `\( {need.item} - \){need.quantity}`;
+                li.textContent = `\( {need.item} - \){need.quantity} (Ends: ${new Date(need.timeline).toLocaleString()})`;
                 const btn = document.createElement('button');
-                btn.textContent = 'Bid';
+                btn.textContent = 'Submit Bid';
                 btn.onclick = () => {
-                    showSection('submitBid');
-                    // Set current need id or something
                     sessionStorage.setItem('currentNeed', need.id);
+                    showSection('submitBid');
                 };
                 li.appendChild(btn);
                 list.appendChild(li);
@@ -372,97 +529,371 @@
         }
 
         function submitBid() {
-            const amount = document.getElementById('bidAmount').value;
+            const amount = parseFloat(document.getElementById('bidAmount').value);
+            const description = document.getElementById('bidDescription').value;
             const needId = parseInt(sessionStorage.getItem('currentNeed'));
-            const need = needs.find(n => n.id === needId);
-            if (need) {
-                bids.push({ needId, amount, vendor: currentUser.email });
-                localStorage.setItem('bids', JSON.stringify(bids));
-                // Mock price drop animation
-                const anim = document.getElementById('priceDropAnimation');
-                if (anim) anim.classList.add('price-drop');
-                setTimeout(() => anim.classList.remove('price-drop'), 1000);
-                // Confetti for win (mock win)
-                if (Math.random() > 0.5) celebrateWin();
-                alert('Bid submitted!');
-                showSection('vendorDashboard');
+            const timestamp = Date.now();
+            const id = bids.length + 1;
+            bids.push({ id, needId, vendor: currentUser.email, amount, description, timestamp, status: 'pending' });
+            localStorage.setItem('bids', JSON.stringify(bids));
+            // Check for fraud: if bid too low/high
+            const avg = calculateAvgBid(needId);
+            if (amount < avg * 0.5 || amount > avg * 2) alert('Fraud Alert: Bid outlier detected!');
+            // Mock price drop
+            const anim = document.getElementById('priceDropAnimation');
+            if (anim) {
+                anim.classList.remove('hidden');
+                anim.classList.add('price-drop');
+                setTimeout(() => {
+                    anim.classList.add('hidden');
+                    anim.classList.remove('price-drop');
+                }, 1000);
             }
+            // Award badge if fast
+            if (timestamp - needs.find(n => n.id === needId).timestamp < 3600000) awardBadge('Fast Responder');
+            logAudit(`Bid submitted: \( {id} for need \){needId} by ${currentUser.email}`);
+            vendorStats.totalBids++;
+            localStorage.setItem('vendorStats', JSON.stringify(vendorStats));
+            alert('Bid submitted! Check Bid Clash Arena.');
+            showSection('vendorDashboard');
         }
 
-        function loadBids() {
-            const list = document.getElementById('bidsList');
-            list.innerHTML = '';
-            needs.forEach(need => {
-                const li = document.createElement('li');
-                li.textContent = `${need.item}: `;
-                const bidList = bids.filter(b => b.needId === need.id);
-                bidList.forEach(bid => {
-                    const span = document.createElement('span');
-                    span.textContent = `${bid.vendor} - $${bid.amount} `;
-                    const chatBtn = document.createElement('button');
-                    chatBtn.textContent = 'Chat';
-                    chatBtn.onclick = () => {
-                        document.getElementById('chat').classList.remove('hidden');
-                        // Load messages mock
-                    };
-                    span.appendChild(chatBtn);
-                    li.appendChild(span);
-                });
-                list.appendChild(li);
+        function calculateAvgBid(needId) {
+            const needBids = bids.filter(b => b.needId === needId);
+            if (needBids.length === 0) return 0;
+            return needBids.reduce((sum, b) => sum + b.amount, 0) / needBids.length;
+        }
+
+        function loadNeedSelect() {
+            const select = document.getElementById('needSelect');
+            select.innerHTML = '';
+            needs.filter(n => n.owner === currentUser.email).forEach(need => {
+                const opt = document.createElement('option');
+                opt.value = need.id;
+                opt.textContent = `\( {need.item} (ID: \){need.id})`;
+                select.appendChild(opt);
             });
+            loadBidsForNeed();
+        }
+
+        function loadBidsForNeed() {
+            const needId = parseInt(document.getElementById('needSelect').value);
+            if (!needId) return;
+            const body = document.getElementById('bidsBody');
+            body.innerHTML = '';
+            const needBids = bids.filter(b => b.needId === needId).sort((a,b) => a.amount - b.amount);
+            const labels = [];
+            const data = [];
+            needBids.forEach(bid => {
+                labels.push(bid.vendor);
+                data.push(bid.amount);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${bid.vendor}</td>
+                    <td>\[ {bid.amount}</td>
+                    <td>${bid.description}</td>
+                    <td>${new Date(bid.timestamp).toLocaleString()}</td>
+                    <td>
+                        <button onclick="startChat(\( {needId}, ' \){bid.vendor}')">Chat</button>
+                        <button onclick="approveBidSingle(${bid.id})">Approve</button>
+                        <button onclick="rejectBid(${bid.id})">Reject</button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            // No edits allowed: no edit buttons
+            renderComparisonChart(labels, data);
+        }
+
+        function renderComparisonChart(labels, data) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Bid Amounts', data: data, backgroundColor: '#2575fc' }]
+                },
+                options: { scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function startChat(needId, vendor) {
+            const key = `\( {needId}_ \){vendor}`;
+            messages[key] = messages[key] || [];
+            document.getElementById('chat').classList.remove('hidden');
+            loadChatMessages(key);
+            sessionStorage.setItem('currentChat', key);
         }
 
         function sendMessage() {
             const input = document.getElementById('chatInput');
-            messages.push(input.value);
-            const msgs = document.getElementById('chatMessages');
-            const p = document.createElement('p');
-            p.textContent = input.value;
-            msgs.appendChild(p);
+            const key = sessionStorage.getItem('currentChat');
+            messages[key].push({ from: currentUser.email, text: input.value });
+            loadChatMessages(key);
             input.value = '';
+            logAudit(`Message sent in chat ${key}`);
         }
 
-        function updateProfile() {
-            alert('Profile updated!');
+        function loadChatMessages(key) {
+            const msgs = document.getElementById('chatMessages');
+            msgs.innerHTML = '';
+            messages[key].forEach(msg => {
+                const p = document.createElement('p');
+                p.textContent = `\( {msg.from}: \){msg.text}`;
+                msgs.appendChild(p);
+            });
         }
 
-        function celebrateWin() {
-            for (let i = 0; i < 50; i++) {
-                const conf = document.createElement('div');
-                conf.classList.add('confetti');
-                conf.style.left = Math.random() * 100 + 'vw';
-                conf.style.background = ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
-                document.body.appendChild(conf);
-                setTimeout(() => conf.remove(), 2000);
+        function approveBidSingle(bidId) {
+            const bid = bids.find(b => b.id === bidId);
+            bid.status = 'approved';
+            localStorage.setItem('bids', JSON.stringify(bids));
+            approvals.push({ bidId, approver: currentUser.email, level: 'single' });
+            localStorage.setItem('approvals', JSON.stringify(approvals));
+            celebrateWin();
+            vendorStats.wins++;
+            localStorage.setItem('vendorStats', JSON.stringify(vendorStats));
+            alert('Bid approved!');
+            logAudit(`Bid approved: ${bidId}`);
+            // Mock delivery tracking
+            deliveries.push({ needId: bid.needId, vendor: bid.vendor, status: 'pending' });
+            localStorage.setItem('deliveries', JSON.stringify(deliveries));
+        }
+
+        function rejectBid(bidId) {
+            const bid = bids.find(b => b.id === bidId);
+            bid.status = 'rejected';
+            localStorage.setItem('bids', JSON.stringify(bids));
+            alert('Bid rejected.');
+            logAudit(`Bid rejected: ${bidId}`);
+        }
+
+        function loadAnalytics() {
+            // Mock savings: average bid vs highest
+            let totalSavings = 0;
+            needs.filter(n => n.owner === currentUser.email).forEach(need => {
+                const needBids = bids.filter(b => b.needId === need.id && b.status === 'approved');
+                if (needBids.length > 0) {
+                    const max = Math.max(...bids.filter(b => b.needId === need.id).map(b => b.amount));
+                    totalSavings += max - needBids[0].amount;
+                }
+            });
+            document.getElementById('savings').textContent = `Total Savings: \]{totalSavings}`;
+            document.getElementById('streaks').textContent = `Procurement Streaks: ${streaks.count}`;
+            // Chart
+            const ctx = document.getElementById('savingsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar'], // Mock
+                    datasets: [{ label: 'Savings', data: [1000, 2000, totalSavings], borderColor: '#2575fc' }]
+                }
+            });
+        }
+
+        function loadDeliveries() {
+            const list = document.getElementById('deliveryList');
+            list.innerHTML = '';
+            deliveries.forEach(d => {
+                const li = document.createElement('li');
+                li.textContent = `Need \( {d.needId} with \){d.vendor}: ${d.status}`;
+                const btn = document.createElement('button');
+                btn.textContent = 'Mark Delivered';
+                btn.onclick = () => {
+                    d.status = 'delivered';
+                    localStorage.setItem('deliveries', JSON.stringify(deliveries));
+                    loadDeliveries();
+                };
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+        }
+
+        function uploadInvoice() {
+            const needId = document.getElementById('invoiceNeed').value;
+            // Mock upload
+            alert('Invoice uploaded for need ' + needId);
+            logAudit(`Invoice uploaded for need ${needId}`);
+        }
+
+        function loadPendingApprovals() {
+            const list = document.getElementById('pendingApprovals');
+            list.innerHTML = '';
+            bids.filter(b => b.status === 'pending').forEach(bid => {
+                const li = document.createElement('li');
+                li.textContent = `Bid \( {bid.id} for need \){bid.needId}: \[ {bid.amount}`;
+                list.appendChild(li);
+            });
+        }
+
+        function approveBid() {
+            // Mock multi-level
+            alert('Bid approved through workflow.');
+            logAudit('Workflow approval');
+        }
+
+        function loadProfile() {
+            const profile = profiles.find(p => p.email === currentUser.email);
+            if (profile) {
+                document.getElementById('companyInfo').value = profile.companyInfo;
+                document.getElementById('certifications').value = profile.certifications;
+                document.getElementById('pastWork').value = profile.pastWork;
             }
         }
 
-        // Swipe detection
-        let touchStartX = 0;
-        let touchStartY = 0;
-        const card = document.getElementById('vendorCard');
-        if (card) {
-            card.addEventListener('touchstart', e => {
-                touchStartX = e.changedTouches[0].screenX;
-                touchStartY = e.changedTouches[0].screenY;
+        function updateProfile() {
+            const profile = profiles.find(p => p.email === currentUser.email);
+            if (profile) {
+                profile.companyInfo = document.getElementById('companyInfo').value;
+                profile.certifications = document.getElementById('certifications').value;
+                profile.pastWork = document.getElementById('pastWork').value;
+                // Mock uploads
+                localStorage.setItem('profiles', JSON.stringify(profiles));
+                alert('Profile updated!');
+                logAudit('Profile updated');
+            }
+        }
+
+        function loadClashNeedSelect() {
+            const select = document.getElementById('clashNeedSelect');
+            select.innerHTML = '';
+            needs.forEach(need => {
+                const opt = document.createElement('option');
+                opt.value = need.id;
+                opt.textContent = `\( {need.item} (ID: \){need.id})`;
+                select.appendChild(opt);
             });
+            loadClashRanks();
+        }
 
-            card.addEventListener('touchend', e => {
-                const touchEndX = e.changedTouches[0].screenX;
-                const touchEndY = e.changedTouches[0].screenY;
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
+        function loadClashRanks() {
+            const needId = parseInt(document.getElementById('clashNeedSelect').value);
+            if (!needId) return;
+            const list = document.getElementById('rankList');
+            list.innerHTML = '';
+            const needBids = bids.filter(b => b.needId === needId).sort((a,b) => a.amount - b.amount);
+            needBids.forEach((bid, index) => {
+                const li = document.createElement('li');
+                li.textContent = `Rank ${index + 1}: Amount \]{bid.amount} (Anonymous)`;
+                if (bid.vendor === currentUser.email) li.textContent += ' (You)';
+                list.appendChild(li);
+            });
+        }
 
-                if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                    if (deltaX > 50) {
-                        alert('Shortlisted (Swipe Right)');
-                    } else if (deltaX < -50) {
-                        alert('Declined (Swipe Left)');
+        function loadVendorAnalytics() {
+            const winRate = vendorStats.totalBids > 0 ? (vendorStats.wins / vendorStats.totalBids * 100).toFixed(2) : 0;
+            document.getElementById('winRate').textContent = `Win Rate: ${winRate}%`;
+            document.getElementById('ratings').textContent = `Average Rating: ${vendorStats.rating}`;
+        }
+
+        function awardBadge(badge) {
+            const profile = profiles.find(p => p.email === currentUser.email);
+            if (profile && !profile.badges.includes(badge)) {
+                profile.badges.push(badge);
+                localStorage.setItem('profiles', JSON.stringify(profiles));
+                loadBadges();
+            }
+        }
+
+        function loadBadges() {
+            const div = document.getElementById('vendorBadges');
+            div.innerHTML = '<h3>Badges</h3>';
+            const profile = profiles.find(p => p.email === currentUser.email);
+            if (profile) {
+                profile.badges.forEach(b => {
+                    const span = document.createElement('span');
+                    span.classList.add('badge');
+                    span.textContent = b;
+                    div.appendChild(span);
+                });
+            }
+            // Mock performance score
+            document.getElementById('performanceScore').textContent = `Performance Score: ${profile.badges.length * 10}`;
+        }
+
+        function logAudit(action) {
+            audits.push({ timestamp: new Date().toLocaleString(), user: currentUser ? currentUser.email : 'anonymous', action });
+            localStorage.setItem('audits', JSON.stringify(audits));
+        }
+
+        function loadAuditTrail() {
+            const list = document.getElementById('auditList');
+            list.innerHTML = '';
+            audits.forEach(a => {
+                const li = document.createElement('li');
+                li.textContent = `[\( {a.timestamp}] \){a.user}: ${a.action}`;
+                list.appendChild(li);
+            });
+        }
+
+        function showAuditTrail() {
+            showSection('auditTrail');
+        }
+
+        function celebrateWin() {
+            for (let i = 0; i < 100; i++) {
+                const conf = document.createElement('div');
+                conf.classList.add('confetti');
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = Math.random() * 100 + 'vh';
+                conf.style.background = ['red', 'blue', 'green', 'yellow', 'purple'][Math.floor(Math.random() * 5)];
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 3000);
+            }
+            // Mock sound: alert('Congrats!')
+            alert('Bid Won! 🎉');
+        }
+
+        // Swipe cards for shortlisting vendors/bids
+        let currentCardIndex = 0;
+        function loadSwipeCards() {
+            const container = document.getElementById('swipeContainer');
+            container.innerHTML = '';
+            const allBids = bids.filter(b => needs.find(n => n.id === b.needId && n.owner === currentUser.email));
+            allBids.forEach((bid, index) => {
+                const card = document.createElement('div');
+                card.classList.add('swipe-card');
+                card.style.zIndex = allBids.length - index;
+                card.style.opacity = index === 0 ? 1 : 0;
+                card.innerHTML = `
+                    <h3>Bid from ${bid.vendor}</h3>
+                    <p>Amount: $${bid.amount}</p>
+                    <p>${bid.description}</p>
+                    <p>Swipe right: Shortlist, left: Decline, up: Details</p>
+                `;
+                let touchStartX = 0, touchStartY = 0;
+                card.addEventListener('touchstart', e => {
+                    touchStartX = e.changedTouches[0].screenX;
+                    touchStartY = e.changedTouches[0].screenY;
+                });
+                card.addEventListener('touchend', e => {
+                    const deltaX = e.changedTouches[0].screenX - touchStartX;
+                    const deltaY = e.changedTouches[0].screenY - touchStartY;
+                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 100) {
+                        card.style.transform = `translateX(${deltaX > 0 ? '100%' : '-100%'})`;
+                        card.style.opacity = 0;
+                        setTimeout(() => {
+                            card.remove();
+                            currentCardIndex++;
+                            showNextCard();
+                        }, 300);
+                        alert(deltaX > 0 ? 'Shortlisted!' : 'Declined!');
+                        logAudit(`Swipe \( {deltaX > 0 ? 'right' : 'left'} on bid \){bid.id}`);
+                    } else if (deltaY < -100) {
+                        alert('Details: Full bid info here.');
                     }
-                } else if (deltaY < -50) {
-                    alert('Reveal Details (Swipe Up)');
-                }
+                });
+                container.appendChild(card);
             });
+            currentCardIndex = 0;
+            showNextCard();
+        }
+
+        function showNextCard() {
+            const cards = document.querySelectorAll('.swipe-card');
+            if (currentCardIndex < cards.length) {
+                cards[currentCardIndex].style.opacity = 1;
+            }
         }
 
         // Initial load
