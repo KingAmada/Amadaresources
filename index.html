@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amada Resources - Competitive Bidding Marketplace</title>
+    <style>
+        /* Mobile-first CSS */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* Neumorphism style */
+        .neumorphic {
+            background: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff;
+            padding: 20px;
+            margin: 10px;
+        }
+
+        /* Gradients and colors */
+        .gradient-bg {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+        }
+
+        header {
+            padding: 10px;
+            text-align: center;
+            color: white;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-around;
+            background: #fff;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #2575fc;
+            color: white;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #1a5bb8;
+        }
+
+        /* Animations */
+        @keyframes priceDrop {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(20px); opacity: 0; }
+        }
+
+        .price-drop {
+            animation: priceDrop 1s ease-in-out;
+        }
+
+        @keyframes confetti {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(-100px) rotate(360deg); }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: red;
+            animation: confetti 2s infinite;
+        }
+
+        /* Swipe styles */
+        .swipe-card {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            touch-action: pan-y;
+            user-select: none;
+        }
+
+        /* Hide sections */
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive for larger screens */
+        @media (min-width: 768px) {
+            main {
+                max-width: 800px;
+                margin: 0 auto;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            main {
+                max-width: 1200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="gradient-bg">
+        <h1>Amada Resources</h1>
+        <p>Your Competitive Bidding Marketplace</p>
+    </header>
+
+    <nav>
+        <button onclick="showSection('home')">Home</button>
+        <button onclick="showSection('login')">Login</button>
+        <button onclick="showSection('register')">Register</button>
+        <button onclick="logout()" id="logoutBtn" class="hidden">Logout</button>
+    </nav>
+
+    <main>
+        <!-- Home Section -->
+        <section id="home">
+            <div class="neumorphic">
+                <h2>Welcome to Amada Resources</h2>
+                <p>A platform where businesses post procurement needs and vendors bid transparently.</p>
+            </div>
+        </section>
+
+        <!-- Login Section -->
+        <section id="login" class="hidden">
+            <div class="neumorphic">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" required>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                    <label for="userType">User Type:</label>
+                    <select id="userType">
+                        <option value="business">Business/Procurement</option>
+                        <option value="vendor">Vendor/Supplier</option>
+                    </select>
+                    <button type="button" onclick="login()">Login</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Register Section -->
+        <section id="register" class="hidden">
+            <div class="neumorphic">
+                <h2>Register</h2>
+                <form id="registerForm">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" required>
+                    <label for="regPassword">Password:</label>
+                    <input type="password" id="regPassword" required>
+                    <label for="regUserType">User Type:</label>
+                    <select id="regUserType">
+                        <option value="business">Business/Procurement</option>
+                        <option value="vendor">Vendor/Supplier</option>
+                    </select>
+                    <button type="button" onclick="register()">Register</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Business Dashboard -->
+        <section id="businessDashboard" class="hidden">
+            <div class="neumorphic">
+                <h2>Business Dashboard</h2>
+                <button onclick="showSection('postNeed')">Post New Need</button>
+                <button onclick="showSection('viewBids')">View Bids</button>
+                <button onclick="showSection('analytics')">Analytics</button>
+                <div id="businessAnalytics" class="hidden">
+                    <h3>Savings Analytics</h3>
+                    <p>You saved $5000 this month!</p>
+                </div>
+            </div>
+            <!-- Swipe for vendors -->
+            <div class="swipe-card" id="vendorCard">
+                <p>Vendor Bid: $100 for 200kg Chicken</p>
+                <p>Swipe right to shortlist, left to decline, up for details.</p>
+            </div>
+        </section>
+
+        <!-- Post Need Section -->
+        <section id="postNeed" class="hidden">
+            <div class="neumorphic">
+                <h2>Post Procurement Need</h2>
+                <form id="postForm">
+                    <label for="item">Item/Service:</label>
+                    <input type="text" id="item" required>
+                    <label for="quantity">Quantity:</label>
+                    <input type="text" id="quantity" required>
+                    <label for="timeline">Bidding Timeline:</label>
+                    <input type="date" id="timeline" required>
+                    <button type="button" onclick="postNeed()">Submit</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- View Bids Section -->
+        <section id="viewBids" class="hidden">
+            <div class="neumorphic">
+                <h2>View Bids</h2>
+                <ul id="bidsList"></ul>
+                <div id="chat" class="hidden">
+                    <h3>Chat with Vendor</h3>
+                    <div id="chatMessages"></div>
+                    <input type="text" id="chatInput" placeholder="Type message...">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vendor Dashboard -->
+        <section id="vendorDashboard" class="hidden">
+            <div class="neumorphic">
+                <h2>Vendor Dashboard</h2>
+                <button onclick="showSection('viewOpportunities')">View Opportunities</button>
+                <button onclick="showSection('profile')">Edit Profile</button>
+                <button onclick="showSection('bidClash')">Bid Clash Arena</button>
+                <div id="badges">
+                    <h3>Your Badges</h3>
+                    <span class="badge">Fast Responder</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- View Opportunities -->
+        <section id="viewOpportunities" class="hidden">
+            <div class="neumorphic">
+                <h2>Open Opportunities</h2>
+                <ul id="opportunitiesList"></ul>
+            </div>
+        </section>
+
+        <!-- Submit Bid -->
+        <section id="submitBid" class="hidden">
+            <div class="neumorphic">
+                <h2>Submit Bid</h2>
+                <form id="bidForm">
+                    <label for="bidAmount">Bid Amount:</label>
+                    <input type="number" id="bidAmount" required>
+                    <label for="quotation">Quotation Upload:</label>
+                    <input type="file" id="quotation">
+                    <button type="button" onclick="submitBid()">Submit Bid</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile" class="hidden">
+            <div class="neumorphic">
+                <h2>Edit Profile</h2>
+                <form id="profileForm">
+                    <label for="companyInfo">Company Info:</label>
+                    <textarea id="companyInfo"></textarea>
+                    <label for="certifications">Certifications:</label>
+                    <input type="text" id="certifications">
+                    <button type="button" onclick="updateProfile()">Update</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Bid Clash Arena -->
+        <section id="bidClash" class="hidden">
+            <div class="neumorphic">
+                <h2>Bid Clash Arena</h2>
+                <p>Your Rank: 2nd</p>
+                <div id="priceDropAnimation">Price Dropping!</div>
+            </div>
+        </section>
+
+        <!-- Analytics Section -->
+        <section id="analytics" class="hidden">
+            <div class="neumorphic">
+                <h2>Analytics</h2>
+                <p>Savings: $10,000</p>
+                <p>Streaks: 5 days</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Amada Resources. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Mock data
+        let currentUser = null;
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+        let needs = JSON.parse(localStorage.getItem('needs')) || [];
+        let bids = JSON.parse(localStorage.getItem('bids')) || [];
+        let messages = [];
+
+        function showSection(sectionId) {
+            document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            if (sectionId === 'viewBids') loadBids();
+            if (sectionId === 'viewOpportunities') loadOpportunities();
+        }
+
+        function register() {
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const type = document.getElementById('regUserType').value;
+            users.push({ email, password, type });
+            localStorage.setItem('users', JSON.stringify(users));
+            alert('Registered successfully!');
+            showSection('login');
+        }
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const type = document.getElementById('userType').value;
+            const user = users.find(u => u.email === email && u.password === password && u.type === type);
+            if (user) {
+                currentUser = user;
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                if (type === 'business') {
+                    showSection('businessDashboard');
+                } else {
+                    showSection('vendorDashboard');
+                }
+            } else {
+                alert('Invalid credentials');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('logoutBtn').classList.add('hidden');
+            showSection('home');
+        }
+
+        function postNeed() {
+            const item = document.getElementById('item').value;
+            const quantity = document.getElementById('quantity').value;
+            const timeline = document.getElementById('timeline').value;
+            needs.push({ id: needs.length + 1, item, quantity, timeline, bids: [] });
+            localStorage.setItem('needs', JSON.stringify(needs));
+            alert('Need posted!');
+            showSection('businessDashboard');
+        }
+
+        function loadOpportunities() {
+            const list = document.getElementById('opportunitiesList');
+            list.innerHTML = '';
+            needs.forEach(need => {
+                const li = document.createElement('li');
+                li.textContent = `\( {need.item} - \){need.quantity}`;
+                const btn = document.createElement('button');
+                btn.textContent = 'Bid';
+                btn.onclick = () => {
+                    showSection('submitBid');
+                    // Set current need id or something
+                    sessionStorage.setItem('currentNeed', need.id);
+                };
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+        }
+
+        function submitBid() {
+            const amount = document.getElementById('bidAmount').value;
+            const needId = parseInt(sessionStorage.getItem('currentNeed'));
+            const need = needs.find(n => n.id === needId);
+            if (need) {
+                bids.push({ needId, amount, vendor: currentUser.email });
+                localStorage.setItem('bids', JSON.stringify(bids));
+                // Mock price drop animation
+                const anim = document.getElementById('priceDropAnimation');
+                if (anim) anim.classList.add('price-drop');
+                setTimeout(() => anim.classList.remove('price-drop'), 1000);
+                // Confetti for win (mock win)
+                if (Math.random() > 0.5) celebrateWin();
+                alert('Bid submitted!');
+                showSection('vendorDashboard');
+            }
+        }
+
+        function loadBids() {
+            const list = document.getElementById('bidsList');
+            list.innerHTML = '';
+            needs.forEach(need => {
+                const li = document.createElement('li');
+                li.textContent = `${need.item}: `;
+                const bidList = bids.filter(b => b.needId === need.id);
+                bidList.forEach(bid => {
+                    const span = document.createElement('span');
+                    span.textContent = `${bid.vendor} - $${bid.amount} `;
+                    const chatBtn = document.createElement('button');
+                    chatBtn.textContent = 'Chat';
+                    chatBtn.onclick = () => {
+                        document.getElementById('chat').classList.remove('hidden');
+                        // Load messages mock
+                    };
+                    span.appendChild(chatBtn);
+                    li.appendChild(span);
+                });
+                list.appendChild(li);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            messages.push(input.value);
+            const msgs = document.getElementById('chatMessages');
+            const p = document.createElement('p');
+            p.textContent = input.value;
+            msgs.appendChild(p);
+            input.value = '';
+        }
+
+        function updateProfile() {
+            alert('Profile updated!');
+        }
+
+        function celebrateWin() {
+            for (let i = 0; i < 50; i++) {
+                const conf = document.createElement('div');
+                conf.classList.add('confetti');
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.background = ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 2000);
+            }
+        }
+
+        // Swipe detection
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const card = document.getElementById('vendorCard');
+        if (card) {
+            card.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            });
+
+            card.addEventListener('touchend', e => {
+                const touchEndX = e.changedTouches[0].screenX;
+                const touchEndY = e.changedTouches[0].screenY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    if (deltaX > 50) {
+                        alert('Shortlisted (Swipe Right)');
+                    } else if (deltaX < -50) {
+                        alert('Declined (Swipe Left)');
+                    }
+                } else if (deltaY < -50) {
+                    alert('Reveal Details (Swipe Up)');
+                }
+            });
+        }
+
+        // Initial load
+        showSection('home');
+    </script>
+</body>
+</html>
